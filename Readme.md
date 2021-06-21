@@ -62,7 +62,7 @@ var suffix= uniqueString(subscription().subscriptionId, subscription().tenantId)
 
 In this case we assign the varibale with a string that will be uniq, based on two pieces of input) to generate a string that is unique for this resource group + subscription combo. As you can see, in Bicep we can use all of the ARM template constructs that we're already familiar with (hopefully) and there is some "syntactic sugar" added to write more brief resource declarations.
 
-Another powerfull way to make the declaration more readble is found in string interpolation. You may have een this in c# or other languages that support this construct. It allows for a intuitive way to format and compose a string into a more complex variant.
+Another powerfull way to make the declaration more readble is found in string interpolation. You may have seen this in c# or other languages that support this construct. It allows for a intuitive way to format and compose a string into a more complex variant.
 
 ``` Bicep
 //string interpolation
@@ -109,7 +109,7 @@ Inspect the generated ARM template ("main-demo.json") to see how Bicep is genera
 
 ### Referencing other resources
 
-We've now seen an isolated resource definition, now we'll look into combining resources and dependencies. For this we'll define a Log Analytics workspace that we'll use in an Application insights resource. In the given example you can see the reference in the Application Insights resource to the workspace id. That is resolved trhoughout the loganalytics workspace identifier and then using the id property of that resource. For clarity we've added the explicit dependency on the workspace but this is not always necessary, since Bicep generates thes dependencies automatically. To check this run the command "bicep build .\demo.bicep". This generates the demo.json ARM template file. To check the output, open the file in VSCode.
+We've now seen an isolated resource definition, now we'll look into combining resources and dependencies. For this we'll define a Log Analytics workspace that we'll use in an Application insights resource. In the given example you can see the reference in the Application Insights resource to the workspace id. That is resolved throughout the loganalytics workspace identifier and then using the id property of that resource. For clarity we've added the explicit dependency on the workspace but this is not always necessary, since Bicep generates thes dependencies automatically. To check this run the command "bicep build .\demo.bicep". This generates the demo.json ARM template file. To check the output, open the file in VSCode.
 
 ``` Bicep
 resource loganalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10-01' ={
@@ -255,7 +255,7 @@ There are a couple of things to note about this.
 
 ### Creating a module
 
-The next concept to use is using a module. A module is a separate file that can be used as a re-uasable template. It by concept cretes a nested deployment that may also be used with a different scope (subsription, tenant, managent group). The deployment for the first set of resources is aimed at the resource group level. To accomplish this we'll make a module by adding a file called "RoleAssignmentModule.bicep".
+The next concept to use is using a module. A module is a separate file that can be used as a re-usable template. It by concept cretes a nested deployment that may also be used with a different scope (subsription, tenant, managent group). The deployment for the first set of resources is aimed at the resource group level. To accomplish this we'll make a module by adding a file called "RoleAssignmentModule.bicep".
 The contents should look like the below example:
 
 ``` Bicep
@@ -289,7 +289,7 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-prev
 
 Notice a couple of things here:
 
-- The "exisiting" keyword is used to create a reference to an instance of an already deployed/defined resource
+- The "existing" keyword is used to create a reference to an instance of an already deployed/defined resource
 - The scope for this module is further reduced to just the Key Vault so the assinment of the role is specific to this KeyVault instance only!
 
 ### Using a module

@@ -81,7 +81,7 @@ Up next, add a keyvault resource. Type "res-k", let the Intellisense pop-up and 
 
 ``` Bicep
 //resource definitions
-resource keyVault 'Microsoft.KeyVault/vaults@2019-09-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2021-04-01-preview' = {
   name: kvname
   location: resourceGroup().location
   properties: {

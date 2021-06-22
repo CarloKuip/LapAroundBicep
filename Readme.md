@@ -249,7 +249,7 @@ resource PSfunctionApp 'Microsoft.Web/sites@2020-12-01' = {
 
 There are a couple of things to note about this.
 
-- First the UserAssigned managed identity is part of a collection of identities, so the newly defined identity has to be assinged to a list. However, that requires a key and value, thus an empty value is supplied, showing a quirk of ARM templates
+- First the UserAssigned managed identity is part of a collection of identities, so the newly defined identity has to be assigned to a list. However, that requires a key and value, thus an empty value is supplied, showing a quirk of ARM templates
 - The application insight setup is specified with two AppSettings. We're using the "properties" key-value collection to pick the instrumentation key and connectionstring to assign as AppSettings. This shows that the resource identifier here acts as the resource() function in ARM templates, pointing us to an instance of the resource() rather than to the Id.
 - In the assignement of the WebJobsStorage Appsetting we see we can utilize the ARM template function ListKeys() to return the indexed key value from the array of returned results.
 

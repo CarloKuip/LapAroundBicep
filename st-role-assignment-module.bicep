@@ -1,6 +1,6 @@
 // parameters
-param storageName string = '' 
-param identityName string = ''
+param storageName string
+param identityName string
 
 // reference to exisiting resources outside module
 resource storageAccount 'Microsoft.Storage/storageAccounts@2021-04-01' existing ={

@@ -6,7 +6,7 @@ var suffix= uniqueString(subscription().subscriptionId, subscription().tenantId)
 //string interpolation
 var uniqueName = '${projectName}-${suffix}'
 var identityName = 'id-${uniqueName}'
-var kvname = 'kv-${take(uniqueName, 9)}'
+var kvname = 'kv-${projectName}-${take(suffix, 9)}'
 var workspaceName = 'workspace-${uniqueName}'
 var insightsName = 'insights-${uniqueName}'
 var hostingplanName = 'serviceplan-${uniqueName}'
@@ -44,18 +44,12 @@ resource loganalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10
   }
 }
 
-// resource dependency
-resource appInsights 'Microsoft.Insights/components@2020-02-02-preview'={
-  name: insightsName
-  location: resourceGroup().location
-  kind: 'web'
-  properties:{
-    Application_Type:'web'
-    WorkspaceResourceId:loganalyticsWorkspace.id
+module appInsights 'app-insights.bicep' ={
+  name: 'appInsights-demo'
+  params:{
+    insightsName: insightsName
+    logAnalyticsWorkspaceId: loganalyticsWorkspace.id
   }
-  dependsOn:[
-    loganalyticsWorkspace
-  ]
 }
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2020-12-01'={
@@ -118,11 +112,11 @@ resource PSfunctionApp 'Microsoft.Web/sites@2020-12-01' = {
       appSettings:[
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: appInsights.properties.InstrumentationKey
+          value: appInsights.outputs.instrumentation_key
         }
         {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
+          value: appInsights.outputs.connection_string
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'

@@ -1,8 +1,12 @@
 # A lap around Bicep
 
-With the recent introduction of verion 0.4, Bicep <https://github.com/Azure/bicep/releases> the language that helps you write ARM templates in an intuitive and rapid manner has reached a level of completeness that enable you to be really productive with it.
+With the release (<https://github.com/Azure/bicep/releases>) of verion 0.4 in June 2021 Bicep, the language that helps you write ARM templates in an intuitive and rapid manner, has reached a level of completeness that enables you to be really productive with it. All later versions are improving and building new capabilities so developers can become more productive writing infrastructure as code for Azure. 
 
-This session you are going to build a little bit of application infrastructure that will lead you through working with the basics of Bicep language and get you familiarized with the tooling in VSCode.
+This "lap around Bicep" is intended to get you familiarized with the basics.
+
+## This session
+
+This session you are going to build a little bit of application infrastructure that will lead you through working with the basic concepts of the Bicep language and get you familiarized with the tooling support in VSCode. Most of this makes sense if you have a bit of experience or familiarity with ARM templates.
 
 ## Reference materials
 
@@ -11,7 +15,7 @@ This session you are going to build a little bit of application infrastructure t
 
 ## Prerequisites
 
-To be able to start this guided tour you need to:
+To be able to complete this guided tour you need to:
 
 1) Create a resource group in your private (self managed) subscription for deployment of the resources
 2) Install VSCode (<https://code.visualstudio.com/Download>)
@@ -317,8 +321,8 @@ Create a new file named: "st-role-assignment-module.bicep" and create the role a
 
 ``` Bicep
 // parameters
-param storageName string = '' 
-param identityName string = ''
+param storageName string 
+param identityName string
 
 // reference to exisiting resources outside module
 resource storageAccount 'Microsoft.Storage/storageAccounts@2021-04-01' existing ={
@@ -356,6 +360,97 @@ module stroleassignment 'st-role-assignment-module.bicep' ={
   }
 }
 
+```
+
+## Refactoring and using Module output
+
+After writing a lot of Bicep code you'll end up wit large files that will undoubtedly have duplication in them. To avoid these duplications we can refactor. For example the AppInsights resource is usefull to be leveraged by other Bicep projects as well. 
+To refactor, we simply create a new file called "app-insights.bicep" and first copy the resource from "main.bicep" and place it in the new file. Now we need to add input and output parameters so we can wire it up in main.bicep. The app-insights.bicep should look like this:
+
+``` Bicep
+param insightsName string
+param logAnalyticsWorkspaceId string 
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02-preview'={
+  name: insightsName
+  location: resourceGroup().location
+  kind: 'web'
+  properties:{
+    Application_Type:'web'
+    WorkspaceResourceId:logAnalyticsWorkspaceId
+  }
+}
+
+output instrumentation_key string = appInsights.properties.InstrumentationKey
+output connection_string string = appInsights.properties.ConnectionString 
+
+```
+
+As you can see we've added the output definitions for two strings so the can be leveraged in our Function App resource, defined in main.bicep. The outputs can also be of type object so they can contain more complex datastructure, but for this exaple a few strings is fine. The module definition, that replaces the origina AppInsights resource should look like this:
+
+``` Bicep
+module appInsights 'app-insights.bicep' ={
+  name: 'appInsights-demo'
+  params:{
+    insightsName: insightsName
+    logAnalyticsWorkspaceId: loganalyticsWorkspace.id
+  }
+}
+```
+
+When using the output of the AppInsights module we can simply refer to the resource.outputs colletion and pick the property we need, in this case the instrumentation_key and connection_string.
+
+``` Bicep
+resource PSfunctionApp 'Microsoft.Web/sites@2020-12-01' = {
+  name: 'function-${uniqueName}'
+  kind:'functionapp,linux'
+  location: resourceGroup().location
+  identity: {
+    type:'UserAssigned'
+    userAssignedIdentities:{
+      '${managedIdentity.id}': {}
+    }
+  }
+  properties:{
+    serverFarmId: appServicePlan.id
+    enabled: true
+    siteConfig:{
+      alwaysOn:false
+      appSettings:[
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsights.outputs.instrumentation_key
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.outputs.connection_string
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'powershell'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME_VERSION'
+          value: '~7'
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${functionAppStorage.name};AccountKey=${listKeys(functionAppStorage.id, '2019-06-01').keys[0].value};EndpointSuffix=core.windows.net'
+        }
+      ]
+    }
+    keyVaultReferenceIdentity:managedIdentity.id    
+  }
+  dependsOn:[
+    keyVault
+    functionAppStorage
+    appServicePlan
+  ]
+}
 ```
 
 ## Reverse engineering an ARM template

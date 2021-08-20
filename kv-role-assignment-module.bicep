@@ -1,6 +1,6 @@
 // parameters
-param keyVaultName string = '' 
-param identityName string = ''
+param keyVaultName string
+param identityName string
 
 // reference to exisiting resources outside module
 resource keyVault 'Microsoft.KeyVault/vaults@2021-04-01-preview' existing ={

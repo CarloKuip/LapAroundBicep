@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.4.1.14562",
-      "templateHash": "572094561035273322"
+      "version": "0.4.451.19169",
+      "templateHash": "7866419137554294032"
     }
   },
   "parameters": {
@@ -19,7 +19,7 @@
     "suffix": "[uniqueString(subscription().subscriptionId, subscription().tenantId)]",
     "uniqueName": "[format('{0}-{1}', parameters('projectName'), variables('suffix'))]",
     "identityName": "[format('id-{0}', variables('uniqueName'))]",
-    "kvname": "[format('kv-{0}', take(variables('uniqueName'), 9))]",
+    "kvname": "[format('kv-{0}-{1}', parameters('projectName'), take(variables('suffix'), 9))]",
     "workspaceName": "[format('workspace-{0}', variables('uniqueName'))]",
     "insightsName": "[format('insights-{0}', variables('uniqueName'))]",
     "hostingplanName": "[format('serviceplan-{0}', variables('uniqueName'))]",
@@ -64,20 +64,6 @@
           "name": "Free"
         }
       }
-    },
-    {
-      "type": "Microsoft.Insights/components",
-      "apiVersion": "2020-02-02-preview",
-      "name": "[variables('insightsName')]",
-      "location": "[resourceGroup().location]",
-      "kind": "web",
-      "properties": {
-        "Application_Type": "web",
-        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
-      ]
     },
     {
       "type": "Microsoft.Web/serverfarms",
@@ -143,11 +129,11 @@
           "appSettings": [
             {
               "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-              "value": "[reference(resourceId('Microsoft.Insights/components', variables('insightsName'))).InstrumentationKey]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsights-demo'), '2019-10-01').outputs.instrumentation_key.value]"
             },
             {
               "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-              "value": "[reference(resourceId('Microsoft.Insights/components', variables('insightsName'))).ConnectionString]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsights-demo'), '2019-10-01').outputs.connection_string.value]"
             },
             {
               "name": "FUNCTIONS_EXTENSION_VERSION",
@@ -170,11 +156,76 @@
         "keyVaultReferenceIdentity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Insights/components', variables('insightsName'))]",
+        "[resourceId('Microsoft.Resources/deployments', 'appInsights-demo')]",
         "[resourceId('Microsoft.Web/serverfarms', variables('hostingplanName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageName'))]",
         "[resourceId('Microsoft.KeyVault/vaults', variables('kvname'))]",
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "appInsights-demo",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "insightsName": {
+            "value": "[variables('insightsName')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.4.451.19169",
+              "templateHash": "490028711867018331"
+            }
+          },
+          "parameters": {
+            "insightsName": {
+              "type": "string"
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string"
+            }
+          },
+          "functions": [],
+          "resources": [
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02-preview",
+              "name": "[parameters('insightsName')]",
+              "location": "[resourceGroup().location]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[parameters('logAnalyticsWorkspaceId')]"
+              }
+            }
+          ],
+          "outputs": {
+            "instrumentation_key": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('insightsName'))).InstrumentationKey]"
+            },
+            "connection_string": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('insightsName'))).ConnectionString]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
       ]
     },
     {
@@ -200,18 +251,16 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.4.1.14562",
-              "templateHash": "15322100260581414679"
+              "version": "0.4.451.19169",
+              "templateHash": "3810072573859099760"
             }
           },
           "parameters": {
             "keyVaultName": {
-              "type": "string",
-              "defaultValue": ""
+              "type": "string"
             },
             "identityName": {
-              "type": "string",
-              "defaultValue": ""
+              "type": "string"
             }
           },
           "functions": [],
@@ -257,18 +306,16 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.4.1.14562",
-              "templateHash": "9121226175420755248"
+              "version": "0.4.451.19169",
+              "templateHash": "7393791977214409619"
             }
           },
           "parameters": {
             "storageName": {
-              "type": "string",
-              "defaultValue": ""
+              "type": "string"
             },
             "identityName": {
-              "type": "string",
-              "defaultValue": ""
+              "type": "string"
             }
           },
           "functions": [],

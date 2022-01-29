@@ -1,16 +1,26 @@
 //parameters
+
+//parameter string with defaults
 param projectName string = 'bicep-demo'
 
-//variables
-var suffix= uniqueString(subscription().subscriptionId, subscription().tenantId)
+//variables 
+
+// derived from context using ARM functions
+var suffix = uniqueString(subscription().subscriptionId, subscription().tenantId)
 //string interpolation
 var uniqueName = '${projectName}-${suffix}'
 var identityName = 'id-${uniqueName}'
-var kvname = 'kv-${projectName}-${take(suffix, 9)}'
+var kvName = 'kv-${projectName}-${take(suffix, 9)}'
 var workspaceName = 'workspace-${uniqueName}'
 var insightsName = 'insights-${uniqueName}'
 var hostingplanName = 'serviceplan-${uniqueName}'
-var storageName  = 'st${suffix}'
+var storageName = 'st${suffix}'
+
+// complex object type
+var tags = {
+  'tag 1': 'tag 1 value'
+  'tag 2': 'tag 2 value'
+}
 
 //resource definitions
 resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
@@ -18,8 +28,8 @@ resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-
   location: resourceGroup().location
 }
 
-resource keyVault 'Microsoft.KeyVault/vaults@2021-04-01-preview' = {
-  name: kvname
+resource keyVault 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
+  name: kvName
   location: resourceGroup().location
   properties: {
     enabledForDeployment: true
@@ -32,54 +42,45 @@ resource keyVault 'Microsoft.KeyVault/vaults@2021-04-01-preview' = {
     }
     enableRbacAuthorization: true
   }
+  tags: tags
 }
 
-resource loganalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10-01' ={
+resource loganalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
   name: workspaceName
   location: resourceGroup().location
-  properties:{
-    sku:{
-      name:'Free'
+  properties: {
+    sku: {
+      name: 'Free'
     }
   }
 }
 
-module appInsights 'app-insights.bicep' ={
+module appInsights 'app-insights.bicep' = {
   name: 'appInsights-demo'
-  params:{
+  params: {
     insightsName: insightsName
     logAnalyticsWorkspaceId: loganalyticsWorkspace.id
+    tags: tags
   }
 }
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2020-12-01'={
-  name: hostingplanName
-  location: resourceGroup().location
-  kind: 'linux'
-  properties:{
-    targetWorkerSizeId:0
-    targetWorkerCount:1
-    reserved:true
-  }
-  sku:{
-    name: 'Y1'
-    tier: 'Dynamic'
-  }
-}
-
-resource functionAppStorage 'Microsoft.Storage/storageAccounts@2021-04-01'={
+resource functionAppStorage 'Microsoft.Storage/storageAccounts@2021-04-01' = {
   name: storageName
   location: resourceGroup().location
-  kind:'StorageV2'
-  sku:{
-    name:'Standard_ZRS'
-    tier:'Standard'
+  kind: 'StorageV2'
+  sku: {
+    name: 'Standard_ZRS'
   }
-  properties:{
+  properties: {
     accessTier: 'Hot'
     allowBlobPublicAccess: false
     supportsHttpsTrafficOnly: true
   }
+}
+
+resource blobservice 'Microsoft.Storage/storageAccounts/blobServices@2021-06-01' existing = {
+  name: 'default'
+  parent: functionAppStorage
 }
 
 var blobNames = [
@@ -87,78 +88,40 @@ var blobNames = [
   'outgoing'
   'quarantine'
 ]
-resource storagecontainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2021-04-01' = [ for blobname in blobNames: {
- name: '${storageName}/default/${blobname}'
- dependsOn:[
-   functionAppStorage
- ] 
+resource storagecontainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2021-06-01' = [for blobname in blobNames: {
+  name: '${blobname}'
+  parent: blobservice
 }]
 
-resource PSfunctionApp 'Microsoft.Web/sites@2020-12-01' = {
-  name: 'function-${uniqueName}'
-  kind:'functionapp,linux'
-  location: resourceGroup().location
-  identity: {
-    type:'UserAssigned'
-    userAssignedIdentities:{
-      '${managedIdentity.id}': {}
-    }
-  }
-  properties:{
-    serverFarmId: appServicePlan.id
-    enabled: true
-    siteConfig:{
-      alwaysOn:false
-      appSettings:[
-        {
-          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
-          value: appInsights.outputs.instrumentation_key
-        }
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.outputs.connection_string
-        }
-        {
-          name: 'FUNCTIONS_EXTENSION_VERSION'
-          value: '~3'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME'
-          value: 'powershell'
-        }
-        {
-          name: 'FUNCTIONS_WORKER_RUNTIME_VERSION'
-          value: '~7'
-        }
-        {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${functionAppStorage.name};AccountKey=${listKeys(functionAppStorage.id, '2019-06-01').keys[0].value};EndpointSuffix=core.windows.net'
-        }
-      ]
-    }
-    keyVaultReferenceIdentity:managedIdentity.id    
-  }
-  dependsOn:[
-    keyVault
-    functionAppStorage
-    appServicePlan
-  ]
-}
 
-module kvroleassignment 'kv-role-assignment-module.bicep' = {
+module kvRoleAssignment 'kv-role-assignment-module.bicep' = {
   name: 'managedIdentityKeyVaultRole'
-  scope: resourceGroup()
-  params:{
+  params: {
     identityName: managedIdentity.name
     keyVaultName: keyVault.name
   }
 }
 
-module stroleassignment 'st-role-assignment-module.bicep' ={
+module storageRoleAssignment 'st-role-assignment-module.bicep' = {
   name: 'managedIdentityStorageRole'
-  scope: resourceGroup()
   params: {
     storageName: functionAppStorage.name
     identityName: managedIdentity.name
   }
+}
+
+module appService 'appservice.bicep' ={
+  name: 'appservice-deployment'
+  params:{
+    appInsightsConnectionString: appInsights.outputs.connection_string
+    appInsightsKey: appInsights.outputs.instrumentation_key
+    functionAppStorageConnectionString: keyVault.getSecret('webJobStorageConnectionString')
+    hostingPlanName: hostingplanName
+    managedIdentityName: managedIdentity.name
+    uniqueName: uniqueName
+  }
+  dependsOn:[
+    storageRoleAssignment
+    kvRoleAssignment
+  ]
 }

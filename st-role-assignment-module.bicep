@@ -11,16 +11,12 @@ resource appIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-3
   name: identityName
 }
 
-// Role assignment
+// Role assignment Storage account Contributor https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#storage-account-contributor
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview'={
-  name: guid( resourceId(uniqueString(deployment().name),'Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab'), resourceGroup().id)
+  name: guid( storageAccount.id, appIdentity.id, '17d1049b-9a84-46fb-8f53-869881c3d3ab')
   scope: storageAccount
   properties:{
-    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab') //storage account contributor
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '17d1049b-9a84-46fb-8f53-869881c3d3ab')
     principalId: appIdentity.properties.principalId
   }
-  dependsOn:[
-    appIdentity
-    storageAccount
-  ]
 }
